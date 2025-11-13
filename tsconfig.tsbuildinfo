@@ -1,0 +1,1 @@
+{"root":["./src/app.ts","./src/deprecated.ts","./src/index.ts","./src/models/Game.ts","./src/models/Player.ts","./src/routes/auth.ts","./src/services/GameManager.ts","./src/services/MatchMaker.ts","./src/socket/SocketController.ts"],"errors":true,"version":"5.6.2"}
