@@ -1,14 +1,20 @@
 // src/socket/SocketController.ts
 import { Server, Socket } from "socket.io";
-import MatchMaker from "../services/MatchMaker";
-import GameManager from "../services/GameManager";
-import Game from "../models/Game";
+import MatchMaker from "../services/MatchMaker.js";
+import GameManager from "../services/GameManager.js";
+import Game from "../models/Game.js";
+
+interface OnlinePlayer {
+  id: string;
+  name: string;
+  email: string;
+}
 
 export default class SocketController {
   private io: Server;
   private matchMaker: MatchMaker;
   private gameManager: GameManager;
-
+  private onlinePlayers: OnlinePlayer[] = [];
   constructor(io: Server) {
     this.io = io;
     this.gameManager = new GameManager();
@@ -35,6 +41,20 @@ export default class SocketController {
     this.io.on("connection", (socket: Socket) => {
       console.log("socket connected:", socket.id);
 
+      const { name, email } = socket.handshake.query;
+      const safeEmail = typeof email === 'string' ? email : '';
+      const safeName = typeof name === 'string' ? name : 'Anonymous';
+
+      console.log("Player connected:", safeName, safeEmail);
+      if (safeEmail !== "" && safeName !== "Anonymous" && safeName !== "undefined" && this.onlinePlayers.every(player => player.email !== email)) {
+        this.onlinePlayers.push({
+          id: socket.id,
+          name: safeName,
+          email: safeEmail
+        })
+      }
+      this.io.emit("online_players", this.onlinePlayers);
+
       socket.on("join", (name) => {
         socket.data.name = name;
         console.log(`${name} joined`);
@@ -45,7 +65,7 @@ export default class SocketController {
         console.log("Someone joined QUEUE")
         const { name } = payload || {};
         const res = this.matchMaker.addToQueue(socket.id, name);
-        socket.emit("queue_update", { ok: res.ok, matched: res.matched });
+        this.io.emit("queue_update", { ok: res.ok, matched: res.matched });
         if (!res.matched) {
           // inform queue state
           socket.emit("queued");
@@ -106,6 +126,9 @@ export default class SocketController {
           this.io.to(res.opponentId).emit("opponent_left", { reason: "opponent_disconnected", winner: true });
           this.io.to(res.game.id).emit("game_over", { winner: res.game.winner });
         }
+
+        this.onlinePlayers.filter(p => p.email === safeEmail);
+        this.io.emit("player_left", this.onlinePlayers)
 
         console.log("socket disconnected:", socket.id, "reason:", reason);
       });
