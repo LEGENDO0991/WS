@@ -86,10 +86,14 @@ export default class SocketController {
           // broadcast updated board to the room
           this.io.to(game.id).emit("move_made", { board: result.board, turn: result.turn, winner: result.winner });
           if (result.winner) {
-            this.io.to(game.id).emit("game_over", { winner: result.winner });
-            // option: cleanup already done in manager for finished game
+            this.io.to(game.id).emit("game_over", {
+              board: result.board,
+              turn: result.turn,
+              winner: result.winner,
+            });
             this.gameManager.removeGame(game.id);
           }
+
         } catch (err: any) {
           socket.emit("invalid_move", { reason: err.message });
         }
@@ -124,7 +128,11 @@ export default class SocketController {
         const res = this.gameManager.handleDisconnect(socket.id);
         if (res.game && res.opponentId && res.forcedWin) {
           this.io.to(res.opponentId).emit("opponent_left", { reason: "opponent_disconnected", winner: true });
-          this.io.to(res.game.id).emit("game_over", { winner: res.game.winner });
+          this.io.to(res.game.id).emit("game_over", {
+            board: res.game.board,
+            turn: res.game.turn,
+            winner: res.game.winner
+          });
         }
 
         this.onlinePlayers.filter(p => p.email === safeEmail);
